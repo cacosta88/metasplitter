@@ -98,40 +98,15 @@ contract YourContract {
 	}
 
 	function withdrawToken(address token) external {
-		uint256 amount = tokenBalances[token][msg.sender];
-		require(amount > 0, "No token balance to withdraw");
+    uint256 amount = tokenBalances[token][msg.sender];
+    require(amount > 0, "No token balance to withdraw");
 
-		tokenBalances[token][msg.sender] = 0;
+    tokenBalances[token][msg.sender] = 0;
 
-		// Inline assembly to call the ERC20 transfer function
-		assembly {
-			// Calculate the function signature for ERC20's transfer(address,uint256)
-			let ptr := mload(0x40)
-			mstore(ptr, 0xa9059cbb) // transfer(address,uint256) function signature
-			mstore(add(ptr, 0x04), caller()) // Append the recipient address
-			mstore(add(ptr, 0x24), amount) // Append the amount
+    require(IERC20(token).transfer(msg.sender, amount), "Transfer failed");
 
-			// Perform the call
-			let result := call(
-				gas(), // forward all gas
-				token, // token contract address
-				0, // no ether to be sent
-				ptr, // pointer to start of input
-				0x44, // size of input (function signature + address + amount)
-				0, // output will not be stored
-				0 // output size
-			)
-
-			// Check the call was successful and the transfer function returned true
-			let success := returndatasize()
-			returndatacopy(ptr, 0, returndatasize())
-			if or(iszero(result), iszero(eq(mload(ptr), 1))) {
-				revert(0, 0)
-			}
-		}
-
-		emit TokenWithdrawn(msg.sender, amount, token);
-	}
+    emit TokenWithdrawn(msg.sender, amount, token);
+}
 
 	function ownerWithdrawETH() external onlyOwner {
 		payable(owner).transfer(address(this).balance);
